@@ -9,6 +9,13 @@ import usebShareStats from '../../hooks/usebShareStats';
 import useBondStats from '../../hooks/useBondStats';
 import metamask_icon from '../../assets/img/metamask-fox.svg';
 import useBombFinance from '../../hooks/useBombFinance';
+import useCurrentEpoch from '../../hooks/useCurrentEpoch';
+import useTreasuryAllocationTimes from '../../hooks/useTreasuryAllocationTimes';
+import { useCountdown } from '../../hooks/useCountdown';
+import useCashPriceInEstimatedTWAP from '../../hooks/useCashPriceInEstimatedTWAP';
+import useCashPriceInLastTWAP from '../../hooks/useCashPriceInLastTWAP';
+import useTotalValueLocked from '../../hooks/useTotalValueLocked';
+
 
 function convertToInternationalCurrencySystem(labelValue: number) {
   // Nine Zeroes for Billions
@@ -41,6 +48,7 @@ const Dashboard: React.FC = () => {
         <GreyHr />
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <FinanceSummaryTable />
+          <BoardRoomData />
         </div>
       </Card>
     </div>
@@ -69,6 +77,7 @@ const FinanceSummaryTable: React.FC = () => {
   const bshare_stats = usebShareStats();
   const bbond_stats = useBondStats();
   const bomb_finance = useBombFinance();
+
   return (
     <div style={{ color: 'white', display: 'flex', flexDirection: 'column', width: '40%' }}>
       <div style={{ display: 'flex', fontSize: '10px', textAlign: 'center', justifyContent: 'center' }}>
@@ -141,6 +150,43 @@ const FinanceSummaryTable: React.FC = () => {
           </div>
           <div style={{ height: '1px', width: '100%', background: 'gray', margin: '10px' }}></div>
         </>
+      ))}
+    </div>
+  );
+};
+
+const BoardRoomData: React.FC = () => {
+  const current_epoch = useCurrentEpoch();
+  const {to} = useTreasuryAllocationTimes();
+  const current_twap =  useCashPriceInEstimatedTWAP();
+  const last_twap =  useCashPriceInLastTWAP();
+  const tvl = useTotalValueLocked();
+
+
+  const [days, hours, minutes, seconds] =  useCountdown(to);
+  return (
+    <div style={{ textAlign: 'center', margin: '10px' }}>
+      <div style={{ color: 'white', fontSize: '22px', padding: '0 40px' }}>Current Epoch</div>
+      <div style={{ color: 'white', fontSize: '26px' }}>{Number(current_epoch)}</div>
+      <div style={{ height: '1px', width: '100%', background: 'gray', margin: '10px' }}></div>
+      <div style={{ color: 'white', fontSize: '26px' }}>{((days!==0?days+":":"")+hours+":"+minutes+":"+seconds)}</div>
+      <div style={{ color: 'white', fontSize: '22px', padding: '0 40px' }}>Next Epoch in</div>
+      <div style={{ height: '1px', width: '100%', background: 'gray', margin: '10px' }}></div>
+      {[
+        {
+          name: 'Live TWAP',
+          value: current_twap?Number(current_twap.tokenInFtm):"---",
+        },
+        {
+          name: 'TVL',
+          value: (tvl?("$"+tvl.toFixed(4)):"---"),
+        },
+        {
+          name: 'Last Epoch TWAP',
+          value: last_twap?(Number(last_twap) / 100000000000000).toFixed(4):"---",
+        },
+      ].map((e) => (
+        <div><span style={{color:'white'}}>{e.name}:</span> <span style={{color:'#00eba2'}}>{e.value}</span></div>
       ))}
     </div>
   );
