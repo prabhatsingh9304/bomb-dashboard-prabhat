@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import styled from 'styled-components';
 import background from '../../assets/img/background_dashboard.png';
 import bomb1 from '../../assets/img/bomb1.png';
@@ -45,6 +45,7 @@ import useWallet from 'use-wallet';
 import UnlockWallet from '../../components/UnlockWallet';
 import useEagerConnect from '../../hooks/useEagerConnect';
 import useBondsPurchasable from '../../hooks/useBondsPurchasable';
+import { useTransactionAdder } from '../../state/transactions/hooks';
 function convertToInternationalCurrencySystem(labelValue: number) {
   // Nine Zeroes for Billions
   return Math.abs(Number(labelValue)) >= 1.0e9
@@ -437,6 +438,8 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
 
   const bombFinance = useBombFinance();
   const bondsPurchasable = useBondsPurchasable();
+  const bondStats = useBondStats();
+  // console.log({bondStats})
 
 
 
@@ -456,9 +459,20 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
       tokenName={'BShare'}
     />,
   );
+  const addTransaction = useTransactionAdder();
 
 
   const bombStats = useBombStats();
+  const isBondPurchasable = useMemo(() => Number(bondStats?.tokenInFtm) < 1.01, [bondStats]);
+  const handleBuyBonds = useCallback(
+    async (amount: string) => {
+      const tx = await bombFinance.buyBonds(amount);
+      addTransaction(tx, {
+        summary: `Buy ${Number(amount).toFixed(2)} BBOND with ${amount} BOMB`,
+      });
+    },
+    [bombFinance, addTransaction],
+  );
   const earnings = useEarningsOnBoardroom();
   const canClaimReward = useClaimRewardCheck();
   const { onRedeem } = useRedeemOnBoardroom();
@@ -482,12 +496,12 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
         <div style={{ display: 'flex', gap: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div>Current Price: (Bomb)^2</div>
-            <div style={{ fontSize: '22px', fontWeight: '600' }}>BBond = 6.2872 BTCB</div>
+            <div style={{ fontSize: '22px', fontWeight: '600' }}>BBond = {bondStats?.tokenInFtm||"---"} BTCB</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div>Available to redeem: </div>
             <div style={{ display: 'flex', fontSize: '30px', fontWeight: 600 }}>
-              <img src={props.logo} alt="" style={{ height: '30px', marginRight: '2px' }} />{' '}
+              <img src={props.logo} alt="" style={{ height: '30px', marginRight: '2px' }} />{getDisplayBalance(tokenBalance)||"---"}
             </div>
           </div>
           
@@ -495,11 +509,11 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
         <div style={{ display: 'flex', width: '100px', gap:"10px", flexWrap: 'wrap', flexDirection:"column" }}>
           <OutlineButton
             onClick={() => {
-              
+              handleBuyBonds("")
             }}
             
-            disabled={bondsPurchasable.eq(0)}
-            style={{ justifyContent: 'space-between', opacity: bondsPurchasable.eq(0) ? 0.5 : 1 }}
+            disabled={isBondPurchasable}
+            style={{ justifyContent: 'space-between', opacity: isBondPurchasable ? 0.5 : 1 }}
           >
             Purchase <img src={cart_in_circle} alt="" />
           </OutlineButton>
