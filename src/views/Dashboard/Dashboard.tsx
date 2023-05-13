@@ -46,6 +46,9 @@ import UnlockWallet from '../../components/UnlockWallet';
 import useEagerConnect from '../../hooks/useEagerConnect';
 import useBondsPurchasable from '../../hooks/useBondsPurchasable';
 import { useTransactionAdder } from '../../state/transactions/hooks';
+import useLpStats from '../../hooks/useLpStats';
+import useStatsForPool from '../../hooks/useStatsForPool';
+import useBank from '../../hooks/useBank';
 function convertToInternationalCurrencySystem(labelValue: number) {
   // Nine Zeroes for Billions
   return Math.abs(Number(labelValue)) >= 1.0e9
@@ -60,6 +63,16 @@ function convertToInternationalCurrencySystem(labelValue: number) {
 }
 
 const Dashboard = () => {
+  const bombFinance = useBombFinance();
+  const bombFtmLpStats = useLpStats('BOMB-BTCB-LP');
+  const tShareFtmLpStats = useLpStats('BSHARE-BNB-LP');
+  const bombLPStats = useMemo(() => (bombFtmLpStats ? bombFtmLpStats : null), [bombFtmLpStats]);
+  const bshareLPStats = useMemo(() => (tShareFtmLpStats ? tShareFtmLpStats : null), [tShareFtmLpStats]);
+  console.log({ bombLPStats, bshareLPStats });
+  const bshare_stats = usebShareStats();
+  const totalStaked = useTotalStakedOnBoardroom();
+  const pool_stats_1 = useStatsForPool(useBank("BombBtcbLPBShareRewardPool"));
+  const pool_stats_2 = useStatsForPool(useBank("BshareBnbLPBShareRewardPool"));
   // console.log({bomb_stats})
   // console.log({background})
   useEagerConnect();
@@ -110,7 +123,20 @@ const Dashboard = () => {
             </WhiteButton>
           </div>
           <CardWithBorder style={{ color: 'white', padding: '10px 30px' }}>
-            <Token name="Boardroom" description='Stake your LP tokens in our farms to start earning $BSHARE' logo={bshare256} earned_token_logo={bomb256}/>
+            <Token
+              name="Boardroom"
+              description="Stake your LP tokens in our farms to start earning $BSHARE"
+              logo={bshare256}
+              earned_token_logo={bomb256}
+              token={bombFinance.BSHARE}
+              tvl={
+                totalStaked && bshare_stats
+                  ? (Number(getDisplayBalance(totalStaked)) * Number(bshare_stats?.priceInDollars)).toFixed(2)
+                  : '---'
+
+              }
+              totalStaked={getDisplayBalance(totalStaked)}
+            />
           </CardWithBorder>
         </div>
         <div style={{ display: 'flex', flex: 2 }}>
@@ -122,16 +148,20 @@ const Dashboard = () => {
 
       <CardWithBorder style={{ color: 'white', padding: '10px 30px' }}>
         <div style={{ fontSize: '20px', fontWeight: 600 }}>Bomb Farms</div>
-        <div style={{marginBottom:"30px"}}>Stake your LP tokens in our farms to start earning $BSHARE</div>
-        <Token name="BOMB-BTCB" logo={bombbtcb} earned_token_logo={bshare256}/>
+        <div style={{ marginBottom: '30px' }}>Stake your LP tokens in our farms to start earning $BSHARE</div>
+        <Token name="BOMB-BTCB" logo={bombbtcb} earned_token_logo={bshare256} token={bombFinance.BBOMBBTCB} tvl={pool_stats_1?.TVL} />
         <div style={{ height: '1px', width: 'calc(100% + 60px)', background: '#00ADE8', margin: '10px -30px' }}></div>
-        <Token name="BSHARE-BNB" logo={bsharebnb} earned_token_logo={bshare256}/>
+        <Token name="BSHARE-BNB" logo={bsharebnb} earned_token_logo={bshare256} token={bombFinance.BSHARE_MAXI} tvl={pool_stats_2?.TVL}/>
       </CardWithBorder>
 
       <CardWithBorder style={{ color: 'white', padding: '10px 30px' }}>
-            <Bonds name="Bonds" description="BBOND can be purchased only on contraction periods, when TWAP of BOMB is below 1" logo={bbond256} earned_token_logo={bshare256}/>
-          </CardWithBorder>
-
+        <Bonds
+          name="Bonds"
+          description="BBOND can be purchased only on contraction periods, when TWAP of BOMB is below 1"
+          logo={bbond256}
+          earned_token_logo={bshare256}
+        />
+      </CardWithBorder>
     </div>
   );
 };
@@ -287,18 +317,19 @@ const BoardRoomData: React.FC = () => {
   );
 };
 
-const Token: React.FC<{name: string, description?:string, logo:string, earned_token_logo:string}> = (props) => {
+const Token: React.FC<{ name: string; description?: string; logo: string; earned_token_logo: string; token: any, tvl?:string, totalStaked?:string }> = (
+  props,
+) => {
   const bshare_stats = usebShareStats();
 
-  const totalStaked = useTotalStakedOnBoardroom();
   const bombFinance = useBombFinance();
   const { account } = useWallet();
 
-  const [approveStatus, approve] = useApprove(bombFinance.BSHARE, bombFinance.contracts.Boardroom.address);
+  const [approveStatus, approve] = useApprove(props.token, bombFinance.contracts.Boardroom.address);
 
-  const tokenBalance = useTokenBalance(bombFinance.BSHARE);
+  const tokenBalance = useTokenBalance(props.token);
   const stakedBalance = useStakedBalanceOnBoardroom();
-  const stakedTokenPriceInDollars = useStakedTokenPriceInDollars(props.name, bombFinance.BSHARE);
+  const stakedTokenPriceInDollars = useStakedTokenPriceInDollars(props.name, props.token);
   const tokenPriceInDollars = useMemo(
     () =>
       stakedTokenPriceInDollars
@@ -309,8 +340,7 @@ const Token: React.FC<{name: string, description?:string, logo:string, earned_to
 
   const { onStake } = useStakeToBoardroom();
   const { onWithdraw } = useWithdrawFromBoardroom();
-  const canWithdrawFromBoardroom = useWithdrawCheck();
-
+  // eslint-disable-next-line
   const [onPresentDeposit, onDismissDeposit] = useModal(
     <DepositModal
       max={tokenBalance}
@@ -318,7 +348,7 @@ const Token: React.FC<{name: string, description?:string, logo:string, earned_to
         onStake(value);
         onDismissDeposit();
       }}
-      tokenName={'BShare'}
+      tokenName={props.token.symbol}
     />,
   );
 
@@ -329,7 +359,7 @@ const Token: React.FC<{name: string, description?:string, logo:string, earned_to
         onWithdraw(value);
         onDismissWithdraw();
       }}
-      tokenName={'BShare'}
+      tokenName={props.token.symbol}
     />,
   );
   const bombStats = useBombStats();
@@ -357,28 +387,26 @@ const Token: React.FC<{name: string, description?:string, logo:string, earned_to
               <span>TVL: </span>
               <b>
                 $
-                {totalStaked && bshare_stats
-                  ? (Number(getDisplayBalance(totalStaked)) * Number(bshare_stats?.priceInDollars)).toFixed(2)
-                  : '---'}
+                {props.tvl}
               </b>
             </div>
           </div>
           <GreyHr />
-          <div style={{ display: 'flex' }}>
+          {props.totalStaked&&<div style={{ display: 'flex' }}>
             <div style={{ display: 'flex', marginLeft: 'auto' }}>
               <span>Total Staked: </span>
               <img src={props.logo} alt="" style={{ height: '20px', margin: '2px' }} />
-              <b>{totalStaked ? getDisplayBalance(totalStaked) : '---'}</b>
+              <b>{props.totalStaked ? (props.totalStaked) : '---'}</b>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '30px', alignItems: 'start' }}>
         <div style={{ display: 'flex', gap: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div>Daily returns: </div>
             <div style={{ fontSize: '22px', fontWeight: '600' }}>2 %</div>
-          </div>
+          </div> */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div>Your Stake: </div>
             <div style={{ display: 'flex', fontSize: '20px', fontWeight: 600 }}>
@@ -434,17 +462,13 @@ const Token: React.FC<{name: string, description?:string, logo:string, earned_to
   );
 };
 
-const Bonds: React.FC<{name: string, description?:string, logo:string, earned_token_logo:string}> = (props) => {
-
+const Bonds: React.FC<{ name: string; description?: string; logo: string; earned_token_logo: string }> = (props) => {
   const bombFinance = useBombFinance();
   const bondsPurchasable = useBondsPurchasable();
   const bondStats = useBondStats();
   // console.log({bondStats})
 
-
-
   const tokenBalance = useTokenBalance(bombFinance.BBOND);
-
 
   const { onStake } = useStakeToBoardroom();
 
@@ -460,7 +484,6 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
     />,
   );
   const addTransaction = useTransactionAdder();
-
 
   const bombStats = useBombStats();
   const isBondPurchasable = useMemo(() => Number(bondStats?.tokenInFtm) < 1.01, [bondStats]);
@@ -487,31 +510,28 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>{props.description}</div>
           </div>
-          <div style={{ display: 'flex' }}>
-            
-          </div>
+          <div style={{ display: 'flex' }}></div>
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '30px', alignItems: 'start' }}>
         <div style={{ display: 'flex', gap: '20px' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div>Current Price: (Bomb)^2</div>
-            <div style={{ fontSize: '22px', fontWeight: '600' }}>BBond = {bondStats?.tokenInFtm||"---"} BTCB</div>
+            <div style={{ fontSize: '22px', fontWeight: '600' }}>BBond = {bondStats?.tokenInFtm || '---'} BTCB</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div>Available to redeem: </div>
             <div style={{ display: 'flex', fontSize: '30px', fontWeight: 600 }}>
-              <img src={props.logo} alt="" style={{ height: '30px', marginRight: '2px' }} />{getDisplayBalance(tokenBalance)||"---"}
+              <img src={props.logo} alt="" style={{ height: '30px', marginRight: '2px' }} />
+              {getDisplayBalance(tokenBalance) || '---'}
             </div>
           </div>
-          
         </div>
-        <div style={{ display: 'flex', width: '100px', gap:"10px", flexWrap: 'wrap', flexDirection:"column" }}>
+        <div style={{ display: 'flex', width: '100px', gap: '10px', flexWrap: 'wrap', flexDirection: 'column' }}>
           <OutlineButton
             onClick={() => {
-              handleBuyBonds("")
+              handleBuyBonds('');
             }}
-            
             disabled={isBondPurchasable}
             style={{ justifyContent: 'space-between', opacity: isBondPurchasable ? 0.5 : 1 }}
           >
@@ -526,14 +546,11 @@ const Bonds: React.FC<{name: string, description?:string, logo:string, earned_to
           >
             Redeem <img style={{ transform: 'rotate(180deg)' }} src={arrow_down_circle} alt="" />
           </OutlineButton>
-          
         </div>
       </div>
     </>
   );
 };
-
-
 
 const GreyHr = styled.hr`
   border: 1px solid #4f4f4f;
