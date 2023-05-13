@@ -23,6 +23,7 @@ import useTotalValueLocked from '../../hooks/useTotalValueLocked';
 import discord_logo_purple from '../../assets/img/discord_purple.svg';
 import doc_logo from '../../assets/img/doc_logo.svg';
 import arrow_down_circle from '../../assets/img/arrow-down-circle.png';
+import cart_in_circle from '../../assets/img/cart_in_circle.png';
 import useTotalStakedOnBoardroom from '../../hooks/useTotalStakedOnBoardroom';
 import { getDisplayBalance } from '../../utils/formatBalance';
 import useApprove, { ApprovalState } from '../../hooks/useApprove';
@@ -43,7 +44,7 @@ import useRedeemOnBoardroom from '../../hooks/useRedeemOnBoardroom';
 import useWallet from 'use-wallet';
 import UnlockWallet from '../../components/UnlockWallet';
 import useEagerConnect from '../../hooks/useEagerConnect';
-
+import useBondsPurchasable from '../../hooks/useBondsPurchasable';
 function convertToInternationalCurrencySystem(labelValue: number) {
   // Nine Zeroes for Billions
   return Math.abs(Number(labelValue)) >= 1.0e9
@@ -127,7 +128,7 @@ const Dashboard = () => {
       </CardWithBorder>
 
       <CardWithBorder style={{ color: 'white', padding: '10px 30px' }}>
-            <Token name="Bonds" description="BBOND can be purchased only on contraction periods, when TWAP of BOMB is below 1" logo={bbond256} earned_token_logo={bshare256}/>
+            <Bonds name="Bonds" description="BBOND can be purchased only on contraction periods, when TWAP of BOMB is below 1" logo={bbond256} earned_token_logo={bshare256}/>
           </CardWithBorder>
 
     </div>
@@ -426,6 +427,92 @@ const Token: React.FC<{name: string, description?:string, logo:string, earned_to
           >
             Claim Rewards <img style={{ height: '20px' }} src={bomb2} alt="" />
           </OutlineButton>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const Bonds: React.FC<{name: string, description?:string, logo:string, earned_token_logo:string}> = (props) => {
+
+  const bombFinance = useBombFinance();
+  const bondsPurchasable = useBondsPurchasable();
+
+
+
+  const tokenBalance = useTokenBalance(bombFinance.BBOND);
+
+
+  const { onStake } = useStakeToBoardroom();
+
+  // eslint-disable-next-line
+  const [onPresentDeposit, onDismissDeposit] = useModal(
+    <DepositModal
+      max={tokenBalance}
+      onConfirm={(value) => {
+        onStake(value);
+        onDismissDeposit();
+      }}
+      tokenName={'BShare'}
+    />,
+  );
+
+
+  const bombStats = useBombStats();
+  const earnings = useEarningsOnBoardroom();
+  const canClaimReward = useClaimRewardCheck();
+  const { onRedeem } = useRedeemOnBoardroom();
+  const canWithdraw = useWithdrawCheck();
+
+  return (
+    <>
+      <div style={{ display: 'flex' }}>
+        <img src={props.logo} style={{ height: '50px' }} alt="" />
+        <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '10px', flex: 1 }}>
+          <div style={{ fontSize: '20px', fontWeight: 600 }}>{props.name}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div>{props.description}</div>
+          </div>
+          <div style={{ display: 'flex' }}>
+            
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '30px', alignItems: 'start' }}>
+        <div style={{ display: 'flex', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div>Current Price: (Bomb)^2</div>
+            <div style={{ fontSize: '22px', fontWeight: '600' }}>BBond = 6.2872 BTCB</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div>Available to redeem: </div>
+            <div style={{ display: 'flex', fontSize: '30px', fontWeight: 600 }}>
+              <img src={props.logo} alt="" style={{ height: '30px', marginRight: '2px' }} />{' '}
+            </div>
+          </div>
+          
+        </div>
+        <div style={{ display: 'flex', width: '100px', gap:"10px", flexWrap: 'wrap', flexDirection:"column" }}>
+          <OutlineButton
+            onClick={() => {
+              
+            }}
+            
+            disabled={bondsPurchasable.eq(0)}
+            style={{ justifyContent: 'space-between', opacity: bondsPurchasable.eq(0) ? 0.5 : 1 }}
+          >
+            Purchase <img src={cart_in_circle} alt="" />
+          </OutlineButton>
+          <OutlineButton
+            onClick={onRedeem}
+            style={{
+              justifyContent: 'space-between',
+              color: earnings.eq(0) || (!canWithdraw && !canClaimReward) ? 'grey' : 'white',
+            }}
+          >
+            Redeem <img style={{ transform: 'rotate(180deg)' }} src={arrow_down_circle} alt="" />
+          </OutlineButton>
+          
         </div>
       </div>
     </>
