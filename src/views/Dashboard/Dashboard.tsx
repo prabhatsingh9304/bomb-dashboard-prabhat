@@ -26,7 +26,7 @@ import arrow_down_circle from '../../assets/img/arrow-down-circle.png';
 import cart_in_circle from '../../assets/img/cart_in_circle.png';
 import useTotalStakedOnBoardroom from '../../hooks/useTotalStakedOnBoardroom';
 import { getDisplayBalance } from '../../utils/formatBalance';
-import useApprove, { ApprovalState } from '../../hooks/useApprove';
+import useApprove from '../../hooks/useApprove';
 import useModal from '../../hooks/useModal';
 import useTokenBalance from '../../hooks/useTokenBalance';
 import useWithdrawCheck from '../../hooks/boardroom/useWithdrawCheck';
@@ -34,17 +34,13 @@ import DepositModal from '../Boardroom/components/DepositModal';
 import WithdrawModal from '../Boardroom/components/WithdrawModal';
 import useStakedBalanceOnBoardroom from '../../hooks/useStakedBalanceOnBoardroom';
 import useStakedTokenPriceInDollars from '../../hooks/useStakedTokenPriceInDollars';
-import useUnstakeTimerBoardroom from '../../hooks/boardroom/useUnstakeTimerBoardroom';
 import useStakeToBoardroom from '../../hooks/useStakeToBoardroom';
 import useWithdrawFromBoardroom from '../../hooks/useWithdrawFromBoardroom';
 import useHarvestFromBoardroom from '../../hooks/useHarvestFromBoardroom';
 import useEarningsOnBoardroom from '../../hooks/useEarningsOnBoardroom';
 import useClaimRewardCheck from '../../hooks/boardroom/useClaimRewardCheck';
 import useRedeemOnBoardroom from '../../hooks/useRedeemOnBoardroom';
-import useWallet from 'use-wallet';
-import UnlockWallet from '../../components/UnlockWallet';
 import useEagerConnect from '../../hooks/useEagerConnect';
-import useBondsPurchasable from '../../hooks/useBondsPurchasable';
 import { useTransactionAdder } from '../../state/transactions/hooks';
 import useLpStats from '../../hooks/useLpStats';
 import useStatsForPool from '../../hooks/useStatsForPool';
@@ -320,10 +316,8 @@ const BoardRoomData: React.FC = () => {
 const Token: React.FC<{ name: string; description?: string; logo: string; earned_token_logo: string; token: any, tvl?:string, totalStaked?:string }> = (
   props,
 ) => {
-  const bshare_stats = usebShareStats();
 
   const bombFinance = useBombFinance();
-  const { account } = useWallet();
 
   const [approveStatus, approve] = useApprove(props.token, bombFinance.contracts.Boardroom.address);
 
@@ -351,7 +345,7 @@ const Token: React.FC<{ name: string; description?: string; logo: string; earned
       tokenName={props.token.symbol}
     />,
   );
-
+  // eslint-disable-next-line
   const [onPresentWithdraw, onDismissWithdraw] = useModal(
     <WithdrawModal
       max={stakedBalance}
@@ -464,7 +458,6 @@ const Token: React.FC<{ name: string; description?: string; logo: string; earned
 
 const Bonds: React.FC<{ name: string; description?: string; logo: string; earned_token_logo: string }> = (props) => {
   const bombFinance = useBombFinance();
-  const bondsPurchasable = useBondsPurchasable();
   const bondStats = useBondStats();
   // console.log({bondStats})
 
@@ -485,7 +478,6 @@ const Bonds: React.FC<{ name: string; description?: string; logo: string; earned
   );
   const addTransaction = useTransactionAdder();
 
-  const bombStats = useBombStats();
   const isBondPurchasable = useMemo(() => Number(bondStats?.tokenInFtm) < 1.01, [bondStats]);
   const handleBuyBonds = useCallback(
     async (amount: string) => {
